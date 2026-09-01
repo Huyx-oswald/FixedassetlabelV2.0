@@ -1,0 +1,13 @@
+﻿{
+  "name": "资产标签生成器",
+  "main": "标签打印.html",
+  "window": {
+    "title": "资产标签生成器",
+    "icon": "favicon.ico",
+    "width": 1100,
+    "height": 800,
+    "min_width": 800,
+    "min_height": 600,
+    "resizable": true
+  }
+}
