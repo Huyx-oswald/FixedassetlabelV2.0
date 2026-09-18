@@ -11,7 +11,6 @@
     <script src="libs/xlsx.full.min.js"></script>
     <!-- 应用模块（按依赖顺序加载） -->
     <script src="js/config.js"></script>
-    <script src="js/auth.js"></script>
     <script src="js/storage.js"></script>
     <script src="js/parser.js"></script>
     <script src="js/qrcode-gen.js"></script>
@@ -64,36 +63,13 @@
             document.documentElement.appendChild(guard);
             // 阻止后续脚本副作用(虽然脚本已加载,但隐藏 UI 即可)
             var hideStyle = document.createElement('style');
-            hideStyle.textContent = '#loginPage,#mainApp{display:none !important;}';
+            hideStyle.textContent = '#mainApp{display:none !important;}';
             document.head.appendChild(hideStyle);
             // 中断 App 初始化
             window.__ENV_GUARDED__ = true;
         }
     })();
     </script>
-
-    <!-- ===== 登录页 ===== -->
-    <div id="loginPage">
-        <div class="box">
-            <div class="icon">🔐</div>
-            <h2>资产标签生成器</h2>
-            <p class="sub">请输入授权码</p>
-            <input type="password" id="pwdInput" placeholder="请输入授权码" maxlength="20" autofocus>
-            <button class="btn-login" onclick="App.verify()">✅ 验证</button>
-            <div class="error" id="errorMsg">❌ 授权码错误，请重新输入</div>
-            <div class="hint">💡 授权码每日更新，请向管理员获取当日授权码</div>
-
-            <!-- 管理员取码入口 -->
-            <details class="admin-entry">
-                <summary>🛡️ 管理员取码</summary>
-                <div class="admin-body">
-                    <input type="password" id="adminKeyInput" placeholder="请输入管理员密钥" maxlength="40">
-                    <button class="btn-admin" onclick="App.fetchCode()">🔑 取码</button>
-                    <div class="admin-result" id="adminResult"></div>
-                </div>
-            </details>
-        </div>
-    </div>
 
     <!-- ===== 主界面 ===== -->
     <div id="mainApp">
@@ -104,7 +80,6 @@
                 <div class="header">
                     <h2>🏷️ 资产标签生成器</h2>
                     <div class="badges">
-                        <span class="badge badge-success">✅ 已授权</span>
                         <span class="badge badge-info" id="statsCount">共 0 条</span>
                     </div>
                 </div>
@@ -135,7 +110,6 @@
                     <button class="btn btn-outline" onclick="App.openSettings()">⚙️ 设置</button>
                     <button class="btn btn-outline" onclick="App.openLabelEditor()" style="border-color:#6f42c1;color:#6f42c1;">🏷️ 编辑标签</button>
                     <button class="btn btn-danger" onclick="App.clearAll()">🗑️ 清空</button>
-                    <button class="btn btn-outline" onclick="App.logout()" style="border-color:#dc3545;color:#dc3545;">🚪 退出</button>
                 </div>
 
                 <!-- 搜索和批量操作 -->

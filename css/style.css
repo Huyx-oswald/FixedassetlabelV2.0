@@ -2,80 +2,8 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Microsoft YaHei', 'SimSun', sans-serif; background: #f0f2f5; }
 
-/* ===== 登录页 ===== */
-#loginPage {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: #f0f2f5; display: flex; justify-content: center; align-items: center;
-    z-index: 9999;
-}
-#loginPage .box {
-    background: #fff; padding: 48px 40px 40px; border-radius: 16px;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.12); text-align: center;
-    width: 400px; max-width: 92%;
-}
-#loginPage .box .icon { font-size: 48px; margin-bottom: 12px; }
-#loginPage .box h2 { color: #1a3c6e; font-size: 22px; margin-bottom: 4px; }
-#loginPage .box .sub { color: #999; font-size: 13px; margin-bottom: 20px; }
-#loginPage .box input {
-    width: 100%; padding: 14px 16px; border: 2px solid #ddd; border-radius: 10px;
-    font-size: 18px; text-align: center; letter-spacing: 2px; margin-bottom: 14px; transition: 0.2s;
-}
-#loginPage .box input:focus {
-    border-color: #1a3c6e; outline: none; box-shadow: 0 0 0 4px rgba(26,60,110,0.1);
-}
-#loginPage .box .btn-login {
-    width: 100%; padding: 14px; background: #1a3c6e; color: #fff; border: none;
-    border-radius: 10px; font-size: 17px; font-weight: 600; cursor: pointer; transition: 0.2s;
-}
-#loginPage .box .btn-login:hover { background: #0f2a4f; transform: translateY(-1px); }
-#loginPage .box .error { color: #dc3545; font-size: 14px; margin-top: 10px; display: none; }
-#loginPage .box .hint {
-    color: #aaa; font-size: 12px; margin-top: 14px; border-top: 1px solid #eee; padding-top: 14px;
-}
-
-/* 管理员取码入口 */
-#loginPage .admin-entry {
-    margin-top: 10px; text-align: left;
-}
-#loginPage .admin-entry summary {
-    font-size: 12px; color: #888; cursor: pointer; padding: 4px 0; user-select: none;
-    list-style: none; outline: none;
-}
-#loginPage .admin-entry summary::-webkit-details-marker { display: none; }
-#loginPage .admin-entry summary:hover { color: #1a3c6e; }
-#loginPage .admin-body {
-    margin-top: 10px; padding-top: 10px; border-top: 1px dashed #eee;
-}
-#loginPage .admin-body input {
-    width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px;
-    font-size: 14px; text-align: left; letter-spacing: 0; margin-bottom: 8px;
-}
-#loginPage .admin-body input:focus { border-color: #1a3c6e; box-shadow: 0 0 0 3px rgba(26,60,110,0.08); }
-#loginPage .btn-admin {
-    width: 100%; padding: 10px; background: #6c757d; color: #fff; border: none;
-    border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s;
-}
-#loginPage .btn-admin:hover { background: #5a6268; }
-#loginPage .admin-result {
-    margin-top: 10px; font-size: 13px; min-height: 20px;
-}
-#loginPage .admin-result.success {
-    color: #155724; background: #d4edda; padding: 10px 12px; border-radius: 8px;
-    display: flex; align-items: center; justify-content: space-between; gap: 8px;
-}
-#loginPage .admin-result.fail { color: #dc3545; }
-#loginPage .admin-result code {
-    font-family: 'Consolas', monospace; font-size: 16px; font-weight: 700;
-    letter-spacing: 1px; color: #1a3c6e;
-}
-#loginPage .admin-result .copy-btn {
-    background: #1a3c6e; color: #fff; border: none; padding: 4px 10px;
-    border-radius: 4px; font-size: 12px; cursor: pointer;
-}
-#loginPage .admin-result .copy-btn:hover { background: #0f2a4f; }
-
 /* ===== 主界面 ===== */
-#mainApp { display: none; padding: 20px; }
+#mainApp { padding: 20px; }
 .container { max-width: 1000px; margin: 0 auto; }
 
 /* 工具栏 */

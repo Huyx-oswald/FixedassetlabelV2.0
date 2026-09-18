@@ -1,6 +1,6 @@
 /**
  * 主应用逻辑 - 协调各模块完成业务流程
- * 职责：登录流程、数据管理、事件绑定、视图切换
+ * 职责：数据管理、事件绑定、视图切换
  */
 var App = (function() {
     'use strict';
@@ -13,9 +13,6 @@ var App = (function() {
 
     // 自动保存函数
     var autoSave = null;
-
-    // 授权状态
-    var _isVerified = false;
 
     // 排序和搜索状态
     var _sortKey = null;
@@ -32,82 +29,6 @@ var App = (function() {
         cols: 8,
         renderBuffer: 3  // 额外渲染的行数
     };
-
-    // ========== 登录/退出 ==========
-
-    function verify() {
-        var input = document.getElementById('pwdInput').value.trim();
-        var error = document.getElementById('errorMsg');
-
-        if (Auth.verify(input)) {
-            _isVerified = true;
-            document.getElementById('loginPage').style.display = 'none';
-            document.getElementById('mainApp').style.display = 'block';
-            _restoreData();
-            setTimeout(function() { _refreshAll(); }, 100);
-        } else {
-            error.style.display = 'block';
-            document.getElementById('pwdInput').value = '';
-            document.getElementById('pwdInput').focus();
-            setTimeout(function() { error.style.display = 'none'; }, 3000);
-        }
-    }
-
-    function logout() {
-        UI.confirm('退出确认', '确认退出当前账号？', function() {
-            _isVerified = false;
-            document.getElementById('mainApp').style.display = 'none';
-            document.getElementById('loginPage').style.display = 'flex';
-            document.getElementById('pwdInput').value = '';
-            document.getElementById('errorMsg').style.display = 'none';
-            document.getElementById('pwdInput').focus();
-        });
-    }
-
-    // ========== 管理员取码 ==========
-
-    /**
-     * 通过管理员密钥取回当日授权码并展示在登录页
-     */
-    function fetchCode() {
-        var keyEl = document.getElementById('adminKeyInput');
-        var resultEl = document.getElementById('adminResult');
-        if (!keyEl || !resultEl) return;
-
-        var key = keyEl.value.trim();
-        if (!key) {
-            resultEl.className = 'admin-result fail';
-            resultEl.textContent = '❌ 请输入管理员密钥';
-            keyEl.focus();
-            return;
-        }
-
-        // 调用 Auth 模块取码
-        var code = Auth.get(key);
-        if (code) {
-            resultEl.className = 'admin-result success';
-            resultEl.innerHTML =
-                '<span>当日授权码：<code>' + _esc(code) + '</code></span>' +
-                '<button class="copy-btn" onclick="App._copyCode(\'' + code + '\')">复制并填入</button>';
-            keyEl.value = ''; // 用完即清,避免泄露
-        } else {
-            resultEl.className = 'admin-result fail';
-            resultEl.textContent = '❌ 管理员密钥错误';
-        }
-    }
-
-    /**
-     * 复制授权码并自动填入登录框
-     */
-    function _copyCode(code) {
-        var pwd = document.getElementById('pwdInput');
-        if (pwd) {
-            pwd.value = code;
-            pwd.focus();
-        }
-        try { localStorage.setItem('clipboard_temp', code); } catch (e) {}
-        UI.toast('已填入授权码', 'success', 1500);
-    }
 
     // ========== 数据管理 ==========
 
@@ -1048,18 +969,9 @@ var App = (function() {
         // 创建自动保存
         autoSave = Storage.createAutoSaver(_getDataText, APP_CONFIG.storageKeys.data);
 
-        // 绑定事件
-        document.getElementById('pwdInput').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') verify();
-        });
-
-        // 管理员密钥输入框回车直接取码
-        var adminKeyEl = document.getElementById('adminKeyInput');
-        if (adminKeyEl) {
-            adminKeyEl.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') { e.preventDefault(); fetchCode(); }
-            });
-        }
+        // 直接进入主界面并恢复数据
+        document.getElementById('mainApp').style.display = 'block';
+        _restoreData();
 
         document.getElementById('dataInput').addEventListener('input', function() {
             autoSave();
@@ -1099,8 +1011,9 @@ var App = (function() {
         var btnDeselectAll = document.getElementById('btnDeselectAll');
         if (btnDeselectAll) btnDeselectAll.addEventListener('click', function() { _onSelectAll(false); });
 
-        // 聚焦密码框
-        document.getElementById('pwdInput').focus();
+        // 聚焦数据录入框
+        var dataInputEl = document.getElementById('dataInput');
+        if (dataInputEl) dataInputEl.focus();
 
         // 悬停放大
         _initMagnifier();
@@ -1108,6 +1021,9 @@ var App = (function() {
         _initShortcuts();
         // 初始化 section-body 的 max-height
         _initSectionHeights();
+
+        // 首次刷新视图（恢复数据后渲染）
+        setTimeout(function() { _refreshAll(); }, 100);
     }
 
     // ========== 界面折叠 ==========
@@ -1207,17 +1123,17 @@ var App = (function() {
             // Ctrl+S → 下载 PDF
             if (e.ctrlKey && e.key === 's') {
                 e.preventDefault();
-                if (_isVerified && currentItems.length > 0) generatePDF();
+                if (currentItems.length > 0) generatePDF();
             }
             // Ctrl+O → 导入文件
             if (e.ctrlKey && e.key === 'o') {
                 e.preventDefault();
-                if (_isVerified) document.getElementById('fileInput').click();
+                document.getElementById('fileInput').click();
             }
             // Ctrl+E → 导出 CSV
             if (e.ctrlKey && e.key === 'e') {
                 e.preventDefault();
-                if (_isVerified && currentItems.length > 0) exportCSV();
+                if (currentItems.length > 0) exportCSV();
             }
         });
     }
@@ -1252,10 +1168,6 @@ var App = (function() {
 
     return {
         init: init,
-        verify: verify,
-        logout: logout,
-        fetchCode: fetchCode,
-        _copyCode: _copyCode,
         generatePreview: generatePreview,
         generatePDF: generatePDF,
         importFile: importFile,
