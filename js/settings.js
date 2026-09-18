@@ -25,6 +25,7 @@ var Settings = (function() {
         if (saved.qrErrorLevel) APP_CONFIG.qrErrorLevel = saved.qrErrorLevel;
         if (saved.qrModuleGap !== undefined) APP_CONFIG.qrModuleGap = saved.qrModuleGap;
         if (saved.qrQuietZone !== undefined) APP_CONFIG.qrQuietZone = saved.qrQuietZone;
+        if (saved.qrContent) APP_CONFIG.qrContent = saved.qrContent;
         if (saved.fields && Array.isArray(saved.fields) && saved.fields.length > 0) {
             APP_CONFIG.fields = saved.fields;
             APP_CONFIG.fieldOrder = saved.fields.map(function(f) { return f.label; });
@@ -54,6 +55,7 @@ var Settings = (function() {
             qrErrorLevel: APP_CONFIG.qrErrorLevel,
             qrModuleGap: APP_CONFIG.qrModuleGap,
             qrQuietZone: APP_CONFIG.qrQuietZone,
+            qrContent: APP_CONFIG.qrContent,
             fields: APP_CONFIG.fields || _defaultFields(),
             pdfQuality: APP_CONFIG.pdf.quality,
             // 保留布局和 Logo（由编辑器单独管理）
@@ -75,6 +77,7 @@ var Settings = (function() {
         APP_CONFIG.qrErrorLevel = 'M';
         APP_CONFIG.qrModuleGap = 0;
         APP_CONFIG.qrQuietZone = 1;
+        APP_CONFIG.qrContent = 'all';
         APP_CONFIG.pdf.quality = 0.92;
         APP_CONFIG.fields = _defaultFields();
         APP_CONFIG.fieldOrder = APP_CONFIG.fields.map(function(f) { return f.label; });
@@ -213,6 +216,14 @@ var Settings = (function() {
                     '</select>' +
                 '</div>' +
             '</div>' +
+            '<div style="margin-top:12px;">' +
+                '<label style="display:block;font-size:12px;color:#888;margin-bottom:3px;">二维码内容</label>' +
+                '<select id="setQrContent" style="width:100%;padding:8px 12px;border:1px solid #d0d7de;border-radius:6px;font-size:14px;">' +
+                    '<option value="all"' + (APP_CONFIG.qrContent === 'code' ? '' : ' selected') + '>全部字段（逗号分隔）</option>' +
+                    '<option value="code"' + (APP_CONFIG.qrContent === 'code' ? ' selected' : '') + '>仅资产编码</option>' +
+                '</select>' +
+                '<div style="font-size:11px;color:#aaa;margin-top:2px;">仅编码：扫码后直接得到编码值，便于对接资产系统查询</div>' +
+            '</div>' +
             '<div style="display:flex;gap:16px;margin-top:12px;">' +
                 '<div style="flex:1;">' +
                     '<label style="display:block;font-size:12px;color:#888;margin-bottom:3px;">模块间隙 <span id="setQrGapVal" style="color:#1a3c6e;font-weight:600;">' + (Math.round(APP_CONFIG.qrModuleGap * 100)) + '%</span></label>' +
@@ -323,6 +334,7 @@ var Settings = (function() {
             APP_CONFIG.qrErrorLevel = panel.querySelector('#setQrLevel').value;
             APP_CONFIG.qrModuleGap = parseFloat(panel.querySelector('#setQrGap').value) || 0;
             APP_CONFIG.qrQuietZone = parseInt(panel.querySelector('#setQrQuiet').value) || 0;
+            APP_CONFIG.qrContent = panel.querySelector('#setQrContent').value;
             APP_CONFIG.pdf.quality = parseFloat(panel.querySelector('#setPdfQuality').value);
             // 清除二维码缓存,使新参数立即生效
             if (typeof QRCodeGen !== 'undefined' && QRCodeGen.clearCache) QRCodeGen.clearCache();

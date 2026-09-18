@@ -94,11 +94,22 @@ var QRCodeGen = (function() {
     }
 
     /**
-     * 构建二维码文本内容（逗号分隔所有字段）
+     * 构建二维码文本内容
+     * 根据 APP_CONFIG.qrContent 决定：
+     *   'all'  - 全部字段逗号分隔（默认）
+     *   'code' - 仅资产编码
      * @param {Object} item - 数据项 {code, name, dept, model, date, person}
      * @returns {string}
      */
     function buildQRText(item) {
+        var mode = 'all';
+        try {
+            if (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.qrContent) mode = APP_CONFIG.qrContent;
+        } catch (e) { /* 默认 all */ }
+
+        if (mode === 'code') {
+            return item.code || '';
+        }
         return [
             item.code || '',
             item.name || '',

@@ -388,7 +388,9 @@ var App = (function() {
         for (var i = startIdx; i < endIdx; i++) {
             var item = currentItems[i];
             var checked = selectedIndexes[i] ? ' checked' : '';
-            var qrDataUrl = QRCodeGen.generate(QRCodeGen.buildQRText(item), 40);
+            // 预览二维码使用高清渲染（与 PDF 一致），避免放大查看时模糊
+            // CSS 缩放到实际显示尺寸，源图分辨率不影响布局
+            var qrDataUrl = QRCodeGen.generate(QRCodeGen.buildQRText(item), 120);
 
             // 动态构建字段行（根据设置的可见字段）
             var fieldsHtml = '';
@@ -738,6 +740,151 @@ var App = (function() {
         };
     }
 
+    /**
+     * Excel 多 Sheet 选择弹框
+     * @param {Object} workbook - XLSX 工作簿
+     * @param {string} fileName - 文件名（用于标题展示）
+     * @param {Function} onPick - 选中 sheet 后回调(name)，取消则回调(null)
+     */
+    function _showSheetPicker(workbook, fileName, onPick) {
+        var overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);z-index:99998;display:flex;align-items:center;justify-content:center;';
+
+        var box = document.createElement('div');
+        box.style.cssText = 'background:#fff;border-radius:12px;padding:24px 28px;min-width:340px;max-width:460px;box-shadow:0 12px 40px rgba(0,0,0,0.2);';
+
+        var listHtml = workbook.SheetNames.map(function(n, i) {
+            return '<button class="sheet-item" data-name="' + _attr(n) + '" style="display:block;width:100%;text-align:left;padding:10px 14px;margin-bottom:6px;border:1px solid #e0e4e8;border-radius:8px;background:#f8f9fa;cursor:pointer;font-size:14px;transition:0.15s;">' +
+                '<span style="color:#1a3c6e;font-weight:600;margin-right:8px;">' + (i + 1) + '.</span>' + _esc(n) +
+            '</button>';
+        }).join('');
+
+        box.innerHTML =
+            '<div style="font-size:17px;font-weight:700;color:#1a3c6e;margin-bottom:6px;">📄 选择工作表</div>' +
+            '<div style="font-size:12px;color:#999;margin-bottom:16px;word-break:break-all;">' + _esc(fileName) + ' · 共 ' + workbook.SheetNames.length + ' 个工作表</div>' +
+            '<div style="max-height:300px;overflow:auto;">' + listHtml + '</div>' +
+            '<div style="display:flex;justify-content:flex-end;margin-top:14px;border-top:1px solid #eee;padding-top:12px;">' +
+                '<button class="sheet-cancel" style="padding:8px 20px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:14px;">取消</button>' +
+            '</div>';
+
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+
+        function close() { overlay.remove(); }
+
+        box.querySelectorAll('.sheet-item').forEach(function(btn) {
+            var name = btn.getAttribute('data-name');
+            btn.onmouseenter = function() { this.style.background = '#eaf1fb'; this.style.borderColor = '#1a3c6e'; };
+            btn.onmouseleave = function() { this.style.background = '#f8f9fa'; this.style.borderColor = '#e0e4e8'; };
+            btn.onclick = function() { close(); onPick(name); };
+        });
+        box.querySelector('.sheet-cancel').onclick = function() { close(); onPick(null); };
+        overlay.onclick = function(e) { if (e.target === overlay) { close(); onPick(null); } };
+    }
+
+    /**
+     * 解析 Excel 指定 Sheet 并应用导入（追加或替换）
+     * @param {Object} workbook - XLSX 工作簿
+     * @param {string} sheetName - 工作表名
+     */
+    function _parseExcelSheet(workbook, sheetName) {
+        var firstSheet = workbook.Sheets[sheetName];
+        var jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+        if (!jsonData || jsonData.length < 2) {
+            UI.toast('未在 Excel 中找到有效数据', 'warning');
+            return;
+        }
+
+        // 检测表头行（前 3 行）
+        var headerRowIdx = -1;
+        for (var r = 0; r < jsonData.length && r < 3; r++) {
+            var row = jsonData[r];
+            if (!row || row.length === 0) continue;
+            var rowStr = row.join(',').toLowerCase();
+            if (rowStr.indexOf('资产编码') > -1 || rowStr.indexOf('资产名称') > -1 ||
+                rowStr.indexOf('编码') > -1 || rowStr.indexOf('名称') > -1) {
+                headerRowIdx = r;
+                break;
+            }
+        }
+
+        // 先解析出 items，再决定追加还是替换
+        function applyParsed(items) {
+            if (items.length === 0) {
+                UI.toast('未解析到有效数据', 'warning');
+                return;
+            }
+            if (currentItems.length > 0) {
+                _showImportModePicker(items.length, function(mode) {
+                    if (!mode) return; // 取消
+                    if (mode === 'append') {
+                        currentItems = currentItems.concat(items);
+                        _syncFromItems();
+                        UI.toast('追加导入成功！共 ' + items.length + ' 条，总计 ' + currentItems.length + ' 条', 'success');
+                    } else {
+                        currentItems = items;
+                        _syncFromItems();
+                        UI.toast('替换导入成功！共 ' + items.length + ' 条数据', 'success');
+                    }
+                });
+            } else {
+                currentItems = items;
+                _syncFromItems();
+                UI.toast('导入成功！共 ' + items.length + ' 条数据', 'success');
+            }
+        }
+
+        if (headerRowIdx >= 0) {
+            // 有表头行，显示映射对话框
+            var headers = jsonData[headerRowIdx];
+            var dataRows = jsonData.slice(headerRowIdx + 1);
+            _showColumnMapping(headers, dataRows, function(colMap) {
+                applyParsed(_parseWithMapping(dataRows, colMap));
+            });
+        } else {
+            // 无表头，按默认顺序解析
+            applyParsed(Parser.parseExcelData(jsonData));
+        }
+    }
+
+    /**
+     * 导入模式选择弹框：追加 / 替换
+     * @param {number} incomingCount - 待导入条数
+     * @param {Function} onPick - 回调('append'|'replace'|null)
+     */
+    function _showImportModePicker(incomingCount, onPick) {
+        var overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);z-index:99998;display:flex;align-items:center;justify-content:center;';
+
+        var box = document.createElement('div');
+        box.style.cssText = 'background:#fff;border-radius:12px;padding:28px 32px;min-width:380px;max-width:460px;box-shadow:0 12px 40px rgba(0,0,0,0.2);';
+        box.innerHTML =
+            '<div style="font-size:17px;font-weight:700;color:#1a3c6e;margin-bottom:8px;">📥 导入方式</div>' +
+            '<div style="font-size:13px;color:#666;margin-bottom:20px;">当前已有 ' + currentItems.length + ' 条数据，待导入 ' + incomingCount + ' 条。请选择导入方式：</div>' +
+            '<div style="display:flex;gap:12px;margin-bottom:14px;">' +
+                '<button class="mode-append" style="flex:1;padding:18px 12px;border:2px solid #1a3c6e;border-radius:10px;background:#eaf1fb;cursor:pointer;text-align:center;font-size:14px;font-weight:600;color:#1a3c6e;transition:0.15s;">' +
+                    '<div style="font-size:24px;margin-bottom:4px;">➕</div>追加导入<br><span style="font-size:11px;font-weight:400;color:#666;">保留现有数据，添加到末尾</span>' +
+                '</button>' +
+                '<button class="mode-replace" style="flex:1;padding:18px 12px;border:2px solid #dc3545;border-radius:10px;background:#fdeaea;cursor:pointer;text-align:center;font-size:14px;font-weight:600;color:#dc3545;transition:0.15s;">' +
+                    '<div style="font-size:24px;margin-bottom:4px;">🔄</div>替换导入<br><span style="font-size:11px;font-weight:400;color:#666;">清空现有数据，全部替换</span>' +
+                '</button>' +
+            '</div>' +
+            '<div style="display:flex;justify-content:center;">' +
+                '<button class="mode-cancel" style="padding:8px 20px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:14px;color:#666;">取消</button>' +
+            '</div>';
+
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+
+        function close() { overlay.remove(); }
+
+        box.querySelector('.mode-append').onclick = function() { close(); onPick('append'); };
+        box.querySelector('.mode-replace').onclick = function() { close(); onPick('replace'); };
+        box.querySelector('.mode-cancel').onclick = function() { close(); onPick(null); };
+        overlay.onclick = function(e) { if (e.target === overlay) { close(); onPick(null); } };
+    }
+
     function importFile(event) {
         var file = event.target.files[0];
         if (!file) return;
@@ -758,56 +905,19 @@ var App = (function() {
                     var data = new Uint8Array(e.target.result);
                     var workbook = XLSX.read(data, { type: 'array' });
 
-                    var sheetName = workbook.SheetNames[0];
-                    if (workbook.SheetNames.length > 1) {
-                        sheetName = workbook.SheetNames[0];
-                    }
-
-                    var firstSheet = workbook.Sheets[sheetName];
-                    var jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-
-                    if (!jsonData || jsonData.length < 2) {
-                        UI.toast('未在 Excel 中找到有效数据', 'warning');
+                    if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+                        UI.toast('未在 Excel 中找到工作表', 'warning');
                         return;
                     }
 
-                    // 检测表头行（前 3 行）
-                    var headerRowIdx = -1;
-                    for (var r = 0; r < jsonData.length && r < 3; r++) {
-                        var row = jsonData[r];
-                        if (!row || row.length === 0) continue;
-                        var rowStr = row.join(',').toLowerCase();
-                        if (rowStr.indexOf('资产编码') > -1 || rowStr.indexOf('资产名称') > -1 ||
-                            rowStr.indexOf('编码') > -1 || rowStr.indexOf('名称') > -1) {
-                            headerRowIdx = r;
-                            break;
-                        }
-                    }
-
-                    if (headerRowIdx >= 0) {
-                        // 有表头行，显示映射对话框
-                        var headers = jsonData[headerRowIdx];
-                        var dataRows = jsonData.slice(headerRowIdx + 1);
-                        _showColumnMapping(headers, dataRows, function(colMap) {
-                            var items = _parseWithMapping(dataRows, colMap);
-                            if (items.length === 0) {
-                                UI.toast('未解析到有效数据', 'warning');
-                                return;
-                            }
-                            currentItems = items;
-                            _syncFromItems();
-                            UI.toast('导入成功！共 ' + items.length + ' 条数据', 'success');
+                    // 多 Sheet 选择
+                    if (workbook.SheetNames.length > 1) {
+                        _showSheetPicker(workbook, file.name, function(sheetName) {
+                            if (!sheetName) return; // 用户取消
+                            _parseExcelSheet(workbook, sheetName);
                         });
                     } else {
-                        // 无表头，按默认顺序解析
-                        var items = Parser.parseExcelData(jsonData);
-                        if (items.length === 0) {
-                            UI.toast('未在 Excel 中找到有效数据', 'warning');
-                            return;
-                        }
-                        currentItems = items;
-                        _syncFromItems();
-                        UI.toast('导入成功！共 ' + items.length + ' 条数据', 'success');
+                        _parseExcelSheet(workbook, workbook.SheetNames[0]);
                     }
                 } catch (err) {
                     UI.toast('读取失败：' + err.message, 'error');
@@ -819,10 +929,31 @@ var App = (function() {
             reader.onload = function(e) {
                 var content = e.target.result;
                 if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1);  // 去 BOM
-                _setDataText(content);
-                _refreshAll();
-                _saveCurrentData();
-                UI.toast('导入成功！', 'success');
+                var incomingItems = Parser.parseText(content);
+                if (incomingItems.length === 0) {
+                    UI.toast('未解析到有效数据', 'warning');
+                    return;
+                }
+                if (currentItems.length > 0) {
+                    _showImportModePicker(incomingItems.length, function(mode) {
+                        if (!mode) return;
+                        if (mode === 'append') {
+                            currentItems = currentItems.concat(incomingItems);
+                            _syncFromItems();
+                            UI.toast('追加导入成功！共 ' + incomingItems.length + ' 条，总计 ' + currentItems.length + ' 条', 'success');
+                        } else {
+                            _setDataText(content);
+                            _refreshAll();
+                            _saveCurrentData();
+                            UI.toast('替换导入成功！共 ' + incomingItems.length + ' 条数据', 'success');
+                        }
+                    });
+                } else {
+                    _setDataText(content);
+                    _refreshAll();
+                    _saveCurrentData();
+                    UI.toast('导入成功！共 ' + incomingItems.length + ' 条数据', 'success');
+                }
             };
             reader.readAsText(file, 'UTF-8');
         } else {
